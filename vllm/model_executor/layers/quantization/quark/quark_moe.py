@@ -1252,14 +1252,14 @@ class QuarkOCP_MX_MoEMethod(QuarkMoEMethod):
         from vllm.model_executor.layers.fused_moe.rocm_aiter_fused_moe import (
             aiter_supports_activation,
         )
-        needs_emulate = (
-            hasattr(layer, 'activation')
-            and not aiter_supports_activation(layer.activation)
+
+        needs_emulate = hasattr(layer, "activation") and not aiter_supports_activation(
+            layer.activation
         )
         if needs_emulate:
             logger.warning_once(
-                'AITER does not support activation %s; '
-                'using Triton emulation for this MoE layer.',
+                "AITER does not support activation %s; "
+                "using Triton emulation for this MoE layer.",
                 layer.activation,
             )
         if self.emulate or needs_emulate:
@@ -1451,13 +1451,16 @@ class QuarkOCP_MX_MoEMethod(QuarkMoEMethod):
                 aiter_supports_activation,
                 rocm_aiter_fused_experts,
             )
-            from vllm.model_executor.layers.fused_moe import fused_experts
 
             if not aiter_supports_activation(layer.activation):
                 logger.debug_once(
-                    'Routing activation %s to Triton fused_experts '
-                    '(unsupported by AITER).', layer.activation,
+                    "Routing activation %s to Triton fused_experts "
+                    "(unsupported by AITER).",
+                    layer.activation,
                 )
+
+                from vllm.model_executor.layers.fused_moe import fused_experts
+
                 return fused_experts(
                     x,
                     layer.w13_weight,

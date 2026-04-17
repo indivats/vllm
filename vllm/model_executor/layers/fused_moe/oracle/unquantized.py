@@ -279,10 +279,6 @@ def select_unquantized_moe_backend(
             if supported:
                 logger.info_once(_make_log_backend(backend), scope="local")
                 return backend, k_cls
-            # AITER was explicitly requested but does not support this
-            # layer (e.g. unsupported activation like SWIGLUSTEP).
-            # Fall through to the priority loop so a compatible backend
-            # (e.g. Triton) is selected instead of crashing.
             logger.warning_once(
                 f"AITER explicitly requested but {reason}; "
                 f"falling back to priority-based backend selection "
