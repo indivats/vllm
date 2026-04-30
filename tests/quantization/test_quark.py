@@ -187,6 +187,7 @@ def test_quark_fp8_parity(vllm_runner):
 class AccuracyTestConfig:
     model_name: str
     excepted_value: float
+    aiter_kernel_supported: bool = False
 
     def get_model_args(
         self,
@@ -229,7 +230,9 @@ WIKITEXT_ACCURACY_CONFIGS = [
         excepted_value=10.6,
     ),
     AccuracyTestConfig(
-        model_name="fxmarty/qwen_1.5-moe-a2.7b-mxfp4", excepted_value=12.4
+        model_name="fxmarty/qwen_1.5-moe-a2.7b-mxfp4",
+        excepted_value=12.4,
+        aiter_kernel_supported=True,
     ),
 ]
 
@@ -238,12 +241,30 @@ WIKITEXT_ACCURACY_CONFIGS = [
     not QUARK_MXFP4_AVAILABLE,
     reason=f"amd-quark>={QUARK_MXFP4_MIN_VERSION} is not available",
 )
+@pytest.mark.parametrize("backend", ["aiter", "emulation"])
 @pytest.mark.parametrize("config", WIKITEXT_ACCURACY_CONFIGS)
 @pytest.mark.parametrize("tp_size", [1, 2])
-def test_ocp_mx_wikitext_correctness(config: AccuracyTestConfig, tp_size: int):
+def test_ocp_mx_wikitext_correctness(
+    monkeypatch: pytest.MonkeyPatch,
+    backend: str,
+    config: AccuracyTestConfig,
+    tp_size: int,
+):
+    if backend == "aiter" and not config.aiter_kernel_supported:
+        pytest.skip(
+            f"No native AITER MoE kernel for {config.model_name!r}; "
+            f"the AITER backend cell would silently fall through to "
+            f"emulation and duplicate the emulation cell's number."
+        )
+
     device_count = torch.accelerator.device_count()
     if device_count < tp_size:
         pytest.skip(f"This test requires >={tp_size} gpus, got only {device_count}")
+
+    if backend == "emulation":
+        monkeypatch.setenv("VLLM_QUARK_OCP_MX_FORCE_EMULATION", "1")
+
+    torch.manual_seed(0)
 
     task = "wikitext"
     rtol = 0.1
@@ -252,10 +273,15 @@ def test_ocp_mx_wikitext_correctness(config: AccuracyTestConfig, tp_size: int):
     results = lm_eval.simple_evaluate(
         model="vllm",
         model_args=config.get_model_args(
-            tp_size=tp_size, kwargs={"cudagraph_capture_sizes": [16]}
+            tp_size=tp_size,
+            kwargs={"cudagraph_capture_sizes": [16], "seed": 0},
         ),
         tasks=task,
         batch_size=64,
+        random_seed=0,
+        numpy_random_seed=0,
+        torch_random_seed=0,
+        fewshot_random_seed=0,
     )
 
     EXPECTED_VALUE = config.excepted_value
@@ -263,7 +289,10 @@ def test_ocp_mx_wikitext_correctness(config: AccuracyTestConfig, tp_size: int):
     assert (
         measured_value < EXPECTED_VALUE + rtol
         and measured_value > EXPECTED_VALUE - rtol
-    ), f"Expected: {EXPECTED_VALUE} |  Measured: {measured_value}"
+    ), (
+        f"backend={backend} model={config.model_name} | "
+        f"Expected: {EXPECTED_VALUE} |  Measured: {measured_value}"
+    )
 
 
 @pytest.mark.parametrize("config", GSM8K_ACCURACY_CONFIGS)

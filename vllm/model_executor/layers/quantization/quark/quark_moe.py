@@ -1034,6 +1034,8 @@ class QuarkOCP_MX_MoEMethod(QuarkMoEMethod):
         ) and (
             self.mxfp4_backend is Mxfp4MoeBackend.NONE or not self.use_rocm_aiter_moe
         )
+        if envs.VLLM_QUARK_OCP_MX_FORCE_EMULATION:
+            self.emulate = True
 
         if self.emulate:
             logger.warning_once(

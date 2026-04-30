@@ -123,6 +123,7 @@ if TYPE_CHECKING:
     VLLM_ROCM_USE_AITER_FUSION_SHARED_EXPERTS: bool = False
     VLLM_ROCM_USE_AITER_TRITON_GEMM: bool = True
     VLLM_ROCM_USE_SKINNY_GEMM: bool = True
+    VLLM_QUARK_OCP_MX_FORCE_EMULATION: bool = False
     VLLM_ROCM_FP8_PADDING: bool = True
     VLLM_ROCM_MOE_PADDING: bool = True
     VLLM_ROCM_SHUFFLE_KV_CACHE_LAYOUT: bool = False
@@ -1032,6 +1033,12 @@ environment_variables: dict[str, Callable[[], Any]] = {
     # By default is disabled.
     "VLLM_ROCM_USE_AITER_FUSION_SHARED_EXPERTS": lambda: (
         os.getenv("VLLM_ROCM_USE_AITER_FUSION_SHARED_EXPERTS", "False").lower()
+        in ("true", "1")
+    ),
+    # Whether to force the Quark OCP MX MoE method emulation path.
+    # By default is disabled.
+    "VLLM_QUARK_OCP_MX_FORCE_EMULATION": lambda: (
+        os.getenv("VLLM_QUARK_OCP_MX_FORCE_EMULATION", "False").lower()
         in ("true", "1")
     ),
     # Whether to use aiter triton kernels for gemm ops.
